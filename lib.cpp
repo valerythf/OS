@@ -6,20 +6,18 @@
 
 class Message {
 public:
-    static zmq::message_t CreateFromString(const std::string& msg_string);
-    static std::string GetStringFromMessage(const zmq::message_t& msg);
+    static zmq::message_t MakeMessage(const std::string& string_m);
+    static std::string MakeString(const zmq::message_t& msg);
 };
 
 class Socket {
 public:
     explicit Socket(int socket_type);
     virtual ~Socket() noexcept;
-
-    virtual void SendMessage(const std::string& msg, bool non_block);
     virtual std::string ReceiveMessage();
     zmq::context_t* context_ = nullptr;
     zmq::socket_t* socket_ = nullptr;
-    
+    virtual void SendMessage(const std::string& msg, bool non_block);
 protected:
     int socket_type_;
 };
@@ -43,15 +41,14 @@ class Subscribe_S : public Socket {
 public:
     Subscribe_S(): Socket(ZMQ_SUB) { socket_->setsockopt(ZMQ_SUBSCRIBE, "", 0);};
 };
-
         
-zmq::message_t Message::CreateFromString(const std::string& msg_string) {
-    zmq::message_t result(msg_string.size());
-    memcpy(result.data(), msg_string.c_str(), msg_string.size());
-    return std::move(result);
+zmq::message_t Message::MakeMessage(const std::string& string_m) {
+    zmq::message_t resu(string_m.size());
+    memcpy(resu.data(), string_m.c_str(), string_m.size());
+    return resu;
 }
 
-std::string Message::GetStringFromMessage(const zmq::message_t& msg) {
+std::string Message::MakeString(const zmq::message_t& msg) {
     return std::string((const char*)msg.data(), msg.size());
 
 }
@@ -65,7 +62,7 @@ Socket::~Socket() noexcept {
 }
 
 void Socket::SendMessage(const std::string& msg, bool non_block) {
-    zmq::message_t to_send = Message::CreateFromString(msg);
+    zmq::message_t to_send = Message::MakeMessage(msg);
     zmq::send_flags flags = non_block ? zmq::send_flags::dontwait : zmq::send_flags::none;
     zmq::send_result_t res = socket_->send(to_send, flags); 
 }
@@ -73,17 +70,18 @@ void Socket::SendMessage(const std::string& msg, bool non_block) {
 std::string Socket::ReceiveMessage() {
     zmq::message_t received;
     zmq::recv_result_t res = socket_->recv(received);
-    return Message::GetStringFromMessage(received);
+    return Message::MakeString(received);
 }
 
-void ListenToSocket(Socket& socket, char prog_symbol) {
+void ReadA(Socket& socket) {
     while (true) {
         std::string received = socket.ReceiveMessage();
-        std::cout << (std::string(1, prog_symbol) + " processed " + received + " symbols\n");
+        std::cout << ("A sent " + received + " symbols\n");
     }
 }
-
-
-
-
-
+void ReadB(Socket& socket) {
+    while (true) {
+        std::string received = socket.ReceiveMessage();
+        std::cout << ("B recieved " + received + " symbols\n");
+    }
+}
